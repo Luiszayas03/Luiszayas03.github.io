@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Quick Links</title>
+<style>
+:root{--bg:#f4f6fb;--surface:#fff;--text:#182230;--muted:#667085;--accent:#4f46e5;--border:#e4e7ec;--soft:#eef2ff;--green:#067647;--amber:#b54708}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+header{padding:32px 20px 24px;background:linear-gradient(135deg,#24245f,#5146d8);color:#fff}.inner,main{max-width:1150px;margin:auto}h1{margin:0 0 6px;font-size:clamp(1.8rem,4vw,2.5rem)}header p{margin:0;color:#e0e7ff}
+main{padding:24px 18px 50px}.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}input,select,button{font:inherit;border-radius:10px;border:1px solid var(--border);padding:10px 12px}input{background:#fff;color:var(--text)}#search{flex:1;min-width:190px}button,.primary{cursor:pointer;background:var(--accent);color:#fff;border-color:var(--accent);font-weight:650;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:7px}button.secondary,.secondary{background:#fff;color:var(--text);border-color:var(--border)}
+.status{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:var(--muted);font-size:.9rem;margin:8px 0 22px}.dot{width:9px;height:9px;border-radius:50%;background:#12b76a;display:inline-block}.dot.loading{background:#f79009}.dot.error{background:#f04438}
+.section{margin:14px 0;border:1px solid var(--border);border-radius:14px;background:var(--surface);overflow:hidden}.section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 17px;cursor:pointer;list-style:none;margin:0;user-select:none}.section-head::-webkit-details-marker{display:none}.section-head::before{content:"＋";display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;border-radius:7px;background:var(--soft);color:var(--accent);font-weight:800;flex-shrink:0}.section[open]>.section-head::before{content:"−"}.section-title-wrap{display:flex;align-items:center;gap:10px;min-width:0;flex:1}h2{margin:0;font-size:1.08rem}.count{color:var(--muted);font-size:.85rem;white-space:nowrap}.section>.grid{padding:0 15px 15px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.link-card{position:relative;min-height:120px;padding:15px;border:1px solid var(--border);border-radius:15px;background:var(--surface);text-decoration:none;color:inherit;transition:transform .15s,box-shadow .15s;display:flex;flex-direction:column;gap:5px}.link-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px #18223012;border-color:#c7d2fe}.link-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.link-title{font-weight:750;overflow-wrap:anywhere}.rank{font-size:.75rem;color:var(--muted);white-space:nowrap}.description{font-size:.88rem;color:var(--muted)}.link-url{font-size:.8rem;color:var(--accent);overflow-wrap:anywhere}.pending{display:inline-block;width:max-content;border-radius:999px;background:#fff1d6;color:var(--amber);font-size:.75rem;font-weight:700;padding:2px 8px}.empty{color:var(--muted);background:#fff;border:1px dashed var(--border);border-radius:12px;padding:18px}.note{color:var(--muted);font-size:.9rem;margin-top:25px}.sheet-link{margin-bottom:14px}.error-box{background:#fff;border:1px solid #fecdca;border-radius:12px;padding:16px;color:#912018;margin:14px 0}.hidden{display:none!important}
+@media(max-width:520px){header{padding:25px 16px 20px}main{padding:20px 12px 40px}.grid{grid-template-columns:1fr}.link-card{min-height:unset}}
+</style>
+</head>
+<body>
+<header><div class="inner"><h1>My Quick Links</h1><p></p></div></header>
+<main>
+  <div class="toolbar">
+    <input id="search" type="search" placeholder="Search sections, names, descriptions…" aria-label="Search links">
+    <button id="refresh">↻ Refresh</button>
+    <a class="primary" href="https://docs.google.com/spreadsheets/d/e/2PACX-1vQAqZ67E4O-JjIVwsKIubCf5Vu5AlxzBODggvqjgIrKvpZ2Ts5PmvqDkgSAjeo0s14F2T4q03G-Y3ud/pubhtml" target="_blank" rel="noopener noreferrer">↗ Open Published Sheet</a>
+  </div>
+  <div class="status" aria-live="polite"><span class="dot loading" id="status-dot"></span><span id="status-text">Loading your Google Sheet…</span></div>
+  <div id="error" class="error-box hidden"></div>
+  <div id="sections"><div class="empty">Connecting to your Google Sheet…</div></div>
+  <p class="note"></p>
+</main>
+<script>
+// Use the regular spreadsheet ID from the original Google Sheets URL.
+// The published /d/e/.../pubhtml URL is a viewing link, not a reliable gviz endpoint.
+const SHEET_ID = "1ACQt_xjD84Ccj7x0A9yK2M8LdTvVJ2HjJzAV4Gm7lBI";
+// Google Visualization JSONP endpoint avoids fetch/CORS restrictions for local HTML.
+const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`;
+// Starter rows are only a fallback if the browser cannot read the published feed.
+const starterRows = [
+  ["Pilot", "Flight Schedule Pro", "https://app.flightschedulepro.com/Account/Login?returnUrl=https%3A%2F%2Fapp.flightschedulepro.com%2F", "Pilot School Bookings", "1"],
+  ["Pilot", "FRAT", "Pending", "Pending", "2"],
+  ["Pilot", "Flight Service / 1800wxbrief.com", "https://www.1800wxbrief.com/Website/#!/", "Weather", "3"],
+  ["Bank", "Pending", "Pending", "Pending", "1"],
+  ["Bank", "Pending", "Pending", "Pending", "2"],
+  ["Stores", "Pending", "Pending", "Pending", "1"],
+  ["Lunar Limit", "Pending", "Pending", "Pending", "1"]
+];
+let allRows = starterRows.slice();
+let liveConnected = false;
+let loadTimeout = null;
+let lastUpdated = null;
+let activeController = null;
+const $ = id => document.getElementById(id);
+
+function setStatus(message, kind="ok") {
+  $("status-text").textContent = message;
+  $("status-dot").className = "dot" + (kind === "loading" ? " loading" : kind === "error" ? " error" : "");
+}
+function esc(value) {
+  return String(value).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function safeLink(value) {
+  const raw = String(value || "").trim();
+  if (!raw || /^(pending|n\/a|none)$/i.test(raw)) return "";
+  // Only allow web links; accept URLs entered without a protocol.
+  const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return "";
+    return parsed.href;
+  } catch (_) {
+    return "";
+  }
+}
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = "", quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quoted) {
+      if (ch === '"' && text[i + 1] === '"') { field += '"'; i++; }
+      else if (ch === '"') quoted = false;
+      else field += ch;
+    } else {
+      if (ch === '"') quoted = true;
+      else if (ch === ',') { row.push(field.trim()); field = ""; }
+      else if (ch === '\n') { row.push(field.trim()); if (row.some(v => v !== "")) rows.push(row); row = []; field = ""; }
+      else if (ch !== '\r') field += ch;
+    }
+  }
+  row.push(field.trim());
+  if (row.some(v => v !== "")) rows.push(row);
+  return rows;
+}
+let activeScript = null;
+let requestTimer = null;
+let requestId = 0;
+
+function loadSheet() {
+  setStatus("Refreshing from Google Sheets…", "loading");
+  $("error").classList.add("hidden");
+  if (requestTimer) clearTimeout(requestTimer);
+  if (activeScript) { activeScript.remove(); activeScript = null; }
+  const thisRequest = ++requestId;
+  const callbackName = "handlePublishedSheetResponse";
+
+  // Google calls this global function with the sheet's response.
+  window[callbackName] = function(response) {
+    if (thisRequest !== requestId) return;
+    if (requestTimer) clearTimeout(requestTimer);
+    if (activeScript) { activeScript.remove(); activeScript = null; }
+    try {
+      if (!response || response.status !== "ok" || !response.table || !Array.isArray(response.table.rows)) {
+        const detail = response?.errors?.map(e => e.detailed_message || e.message).filter(Boolean).join("; ");
+        throw new Error(detail || "Google did not return a readable table. Confirm the spreadsheet is published and the link data is on the published tab.");
+      }
+      const rows = response.table.rows.map(r => (r.c || []).map(cell => {
+        if (!cell) return "";
+        // Use formatted values where available for display-friendly dates/numbers.
+        return cell.f != null ? String(cell.f) : cell.v == null ? "" : String(cell.v);
+      }));
+      if (rows.length && String(rows[0][0] || "").replace(/^\uFEFF/, "").trim().toLowerCase() === "page_section") rows.shift();
+      const nonemptyRows = rows.filter(row => row.some(v => String(v || "").trim() !== ""));
+      if (!nonemptyRows.length) throw new Error("The published worksheet loaded, but it contains no link rows.");
+      allRows = nonemptyRows;
+      liveConnected = true;
+      lastUpdated = new Date();
+      render();
+      setStatus(`Live sheet connected · ${allRows.length} rows · Updated ${lastUpdated.toLocaleTimeString([], {hour:"numeric",minute:"2-digit",second:"2-digit"})}`);
+    } catch (err) {
+      setStatus(liveConnected ? "Refresh failed · showing last loaded data" : "Live sheet access unavailable", "error");
+      showError(err?.message || "The browser could not read the published sheet.");
+      if (!liveConnected) { allRows = starterRows.slice(); render(); }
+    }
+  };
+
+  // The responseHandler option makes this a script callback (JSONP), so the
+  // browser does not need to allow cross-origin fetch requests.
+  const script = document.createElement("script");
+  script.async = true;
+  // Google documents responseHandler as a tqx option. Use it directly, plus
+  // the first worksheet's gid and one header row.
+  script.src = `${SHEET_URL}?tqx=${encodeURIComponent(`responseHandler:${callbackName}`)}&gid=0&headers=1&cachebust=${Date.now()}`;
+  script.onerror = function() {
+    if (thisRequest !== requestId) return;
+    if (requestTimer) clearTimeout(requestTimer);
+    if (activeScript) { activeScript.remove(); activeScript = null; }
+    setStatus(liveConnected ? "Refresh failed · showing last loaded data" : "Live sheet access unavailable", "error");
+    showError("Google could not load the published-sheet response. Open the published sheet link to confirm it is public, and make sure the correct worksheet is published.");
+    if (!liveConnected) { allRows = starterRows.slice(); render(); }
+  };
+  activeScript = script;
+  document.head.appendChild(script);
+  requestTimer = setTimeout(() => {
+    if (thisRequest !== requestId) return;
+    if (activeScript) { activeScript.remove(); activeScript = null; }
+    setStatus(liveConnected ? "Refresh timed out · showing last loaded data" : "Live sheet request timed out", "error");
+    showError("Google did not respond in time. Confirm the published sheet is accessible, then click Refresh.");
+    if (!liveConnected) { allRows = starterRows.slice(); render(); }
+  }, 15000);
+}
+
+function showError(message) {
+  $("error").classList.remove("hidden");
+  $("error").innerHTML = `<strong>The live Google Sheet could not be read.</strong><br>${esc(message)}<br><br>Source sheet: <a href="https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit" target="_blank" rel="noopener noreferrer">Open original spreadsheet</a> · <a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vQAqZ67E4O-JjIVwsKIubCf5Vu5AlxzBODggvqjgIrKvpZ2Ts5PmvqDkgSAjeo0s14F2T4q03G-Y3ud/pubhtml" target="_blank" rel="noopener noreferrer">Open published view</a>. Make sure the original spreadsheet is shared as “Anyone with the link — Viewer” or its data is published to the web.`;
+}
+function render() {
+  const query = $("search").value.trim().toLowerCase();
+  const groups = new Map();
+  allRows.forEach(row => {
+    // Expected columns: Page_Section, Site_Name, Link, Description, Ranking
+    const [sectionRaw="", nameRaw="", linkRaw="", descriptionRaw="", rankingRaw=""] = row;
+    const section = sectionRaw.trim();
+    const name = nameRaw.trim();
+    const link = linkRaw.trim();
+    const description = descriptionRaw.trim();
+    const ranking = rankingRaw.trim();
+    if (!section && !name && !link && !description) return;
+    if (!section && !name) return;
+    const item = {section:section || "Other", name:name || "Unnamed link", link, description, ranking};
+    const searchText = `${item.section} ${item.name} ${item.link} ${item.description} ${item.ranking}`.toLowerCase();
+    if (query && !searchText.includes(query)) return;
+    if (!groups.has(item.section)) groups.set(item.section, []);
+    groups.get(item.section).push(item);
+  });
+  const root = $("sections");
+  root.innerHTML = "";
+  if (!groups.size) {
+    root.innerHTML = `<div class="empty">${query ? "No links match your search." : "No link rows found. Add rows to your Google Sheet with Page_Section, Site_Name, Link, Description, and Ranking columns."}</div>`;
+    return;
+  }
+  for (const [section, items] of groups) {
+    items.sort((a,b) => {
+      const ar = Number(a.ranking), br = Number(b.ranking);
+      if (Number.isFinite(ar) && Number.isFinite(br) && ar !== br) return ar-br;
+      if (Number.isFinite(ar) && !Number.isFinite(br)) return -1;
+      if (!Number.isFinite(ar) && Number.isFinite(br)) return 1;
+      return 0;
+    });
+    const sectionEl = document.createElement("details");
+    sectionEl.className = "section";
+    // Sections start collapsed; search expands matching sections for convenience.
+    sectionEl.open = Boolean(query);
+    const head = document.createElement("summary");
+    head.className = "section-head";
+    head.innerHTML = `<span class="section-title-wrap"><h2>${esc(section)}</h2></span><span class="count">${items.length} ${items.length===1?"link":"links"}</span>`;
+    sectionEl.appendChild(head);
+    const grid = document.createElement("div");
+    grid.className = "grid";
+    items.forEach(item => {
+      const url = safeLink(item.link);
+      const card = document.createElement(url ? "a" : "div");
+      card.className = "link-card";
+      if (url) { card.href = url; card.target = "_blank"; card.rel = "noopener noreferrer"; }
+      const rankText = item.ranking ? `#${esc(item.ranking)}` : "";
+      card.innerHTML = `<div class="link-top"><span class="link-title">${esc(item.name)}</span>${rankText ? `<span class="rank">${rankText}</span>` : ""}</div>${item.description ? `<div class="description">${esc(item.description)}</div>` : ""}${url ? `<div class="link-url">${esc(url.replace(/^https?:\/\//,""))} ↗</div>` : `<span class="pending">${/pending/i.test(item.link) || !item.link ? "Pending / no link yet" : "Invalid link"}</span>`}`;
+      grid.appendChild(card);
+    });
+    sectionEl.appendChild(grid);
+    root.appendChild(sectionEl);
+  }
+}
+$("search").addEventListener("input", render);
+$("refresh").addEventListener("click", loadSheet);
+render();
+loadSheet();
+setInterval(loadSheet, 60000);
+</script>
+</body>
+</html>
